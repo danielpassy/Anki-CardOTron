@@ -13,7 +13,7 @@ import genanki
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
-class DAnki(object):
+class AnkiCardOTron(object):
     """
     Create d
     """
