@@ -1,0 +1,2 @@
+genanki==0.10.0
+aiohttp==3.7.3
