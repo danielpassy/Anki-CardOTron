@@ -211,6 +211,3 @@ class AnkiCardOTron(object):
         Streamline all the methods required for the rceation of a
         """
         self.auto_create_notes()
-
-
-

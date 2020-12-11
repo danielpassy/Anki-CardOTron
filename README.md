@@ -1,2 +1,2 @@
-# Anki-CardOTron
-Automates the creation of cards for studying Hebrew-English
+# AnkiCardOTron
+Automates the creation of Anki cards for studying Hebrew-English
