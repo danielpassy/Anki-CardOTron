@@ -21,7 +21,7 @@ class AnkiCardOTron(object):
     def __init__(self, **kwargs):
         """
         Arguments:
-        deck_name, csv, from_kindle, file_path,
+        deck_name, csv, from_kindle, file_path, file
         TODO: IMPLEMENT: model, template
 
         """
@@ -29,7 +29,7 @@ class AnkiCardOTron(object):
             setattr(self, key, value)
 
         if (not hasattr(self, "file_path")) and (not hasattr(self, "word_list")):
-            raise NameError("You must pass a word_list or file_path as an argument ")
+            raise NameError("You must pass a word_list or file_path as an argument")
         if hasattr(self, "file_path") and hasattr(self, "word_list"):
             raise NameError("You must pass either word_list or file_path, not both")
 
@@ -51,7 +51,11 @@ class AnkiCardOTron(object):
             "Multiple_Meaning",
         }
         self.df_main_table = {}
-        self.error_list = []
+        self.__errorHandler = self.AnkiTronError()
+        self.number_errors = self.__errorHandler.number_errors
+        self.input_errors = self.__errorHandler.input_errors
+        self.translate_errors = self.__errorHandler.translate_errors
+        self.errors = self.__errorHandler.errors
         self.__open_file()
         self.__create_model()
 
@@ -59,6 +63,7 @@ class AnkiCardOTron(object):
         ## TODO: implement cleanup
 
         if self.csv:
+
             try:
                 with open(self.file_path, newline="", encoding="utf-8-sig") as f:
                     input_list = [line.strip() for line in f]
@@ -71,6 +76,9 @@ class AnkiCardOTron(object):
 
         self.word_list = self.__format_input(input_list)
 
+    def serialize(self) -> str:
+        return self.df_main_table
+
     def __format_input(self, input_list: list) -> str:
         """
         Receive a list of words from the user and format it
@@ -81,7 +89,7 @@ class AnkiCardOTron(object):
         """
         # some punctuations are excluded due to beeing used in Hebrew
         word_list_tmp = []
-        punctuation = r"""!"#$%&()*+,-./:;<=>?@[\]^_{|}~"""
+        punctuation = r""" !"#$%&()*+,-./:;<=>?@[\]^_{|}~"""
         for input in input_list:
             tmp = input.split(",")
             for word in tmp:
@@ -92,7 +100,7 @@ class AnkiCardOTron(object):
             if self.is_hebrew(word):
                 pass
             else:
-                self.__create_error(word, "The token was not identified as Hebrew")
+                self.__errorHandler.create_error(word, "The token was not identified as Hebrew", 'input')
                 word_list_tmp.remove(word)
         return word_list_tmp
 
@@ -113,7 +121,6 @@ class AnkiCardOTron(object):
         )
 
     def translate(self):
-
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.IO_main(loop))
 
@@ -144,10 +151,7 @@ class AnkiCardOTron(object):
                 table["Multiple_Meaning"] = False
             self.df_main_table[word] = table
         else:
-            self.__create_error(word, html["ResultType"])
-
-    def __create_error(self, word: str, error):
-        self.error_list.append({"word": word, "error": error})
+            self.__errorHandler.create_error(word, html["ResultType"], 'translate')
 
     async def API_call(self, session: object, word: str) -> NoReturn:
         params = {"Query": word, "ClientName": "Android_Hebrew"}
@@ -156,7 +160,7 @@ class AnkiCardOTron(object):
             if response.reason == "OK":
                 await self.extract_response(await response.json(), word)
             else:
-                self.__create_error(word, response.reason)
+                self.__errorHandler.__create_error(word, response.reason, 'translate')
 
     def auto_create_notes(self) -> str:
         for key, value in self.df_main_table.items():
@@ -167,7 +171,11 @@ class AnkiCardOTron(object):
         deck_filename = self.deck_name.lower().replace(" ", "_")
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
-        self.deck_path = os.path.join(settings.MEDIA_ROOT, deck_filename + ".apkg")
+        cwd = os.getcwd()
+        output_path = os.path.join(cwd, "outputDeck")
+        if not os.path.exists(output_path):
+            os.mkdir(output_path)
+        self.deck_path = os.path.join(output_path, deck_filename + ".apkg")
         my_package.write_to_file(self.deck_path)
         return self.deck_path
         # returns the  path to the deck
@@ -211,3 +219,57 @@ class AnkiCardOTron(object):
         Streamline all the methods required for the rceation of a
         """
         self.auto_create_notes()
+
+    class AnkiTronError(object):
+        """
+        And Error wrapper for AnkiTron
+        """
+
+        def __init__(self):
+            self.num_errors = 0
+            self.translated = False
+            self.error_list = []
+
+        def create_error(self, word: str, error: object, typeE: str):
+            if not (typeE == 'input' or typeE == 'translate'):
+                raise TypeError('The error should be "translate" or "input"')
+            self.error_list.append({"word": word, "error": error, "type": typeE})
+
+        def input_errors(self):
+            input_errors = 0
+            for item in self.error_list:
+                if item['type'] == 'input':
+                    input_errors += 1
+            return input_errors
+
+        def translate_errors(self):
+            if not self.translated:
+                msg = "You must call `.translate()` before accessing `.number_errors`."
+                raise AssertionError(msg)
+
+            translate_errors = 0
+            for item in self.error_list:
+                if item['type'] == 'translate':
+                    translate_errors += 1
+            return translate_errors
+
+        def number_errors(self):
+            return len(self.error_list)
+
+        def errors(self):
+            return self.error_list
+
+        def __set_translated(self):
+            self.translated = True
+
+# class AnkiTronError(object):
+#     """
+#     A wrapper for error during AnkiTron Execution
+#     It should'nt be instanciated outside AnkiTron
+#     """
+#     def __init__(self):
+#         self.initialized = False
+#         self.number_errors = 0
+
+
+#     def add

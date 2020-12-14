@@ -1,6 +1,6 @@
 import unittest
 from os import path
-from util import DAnki
+from AnkiCardOTron import AnkiCardOTron
 
 
 class TestInputCSV(unittest.TestCase):
@@ -8,46 +8,41 @@ class TestInputCSV(unittest.TestCase):
     docstring
     """
 
+    def setUp(self):
+        self.cwd = path.dirname(__file__)
+
     def test_no_file(self):
         # no file handler
         with self.assertRaises(NameError):
-            DAnki(deck_name="hello")
+            AnkiCardOTron(deck_name="hello")
 
     def test_twoFileHandler(self):
         # both options
 
         with self.assertRaises(NameError):
-            DAnki(file_path="c", word_list=[1, 2, 3])
+            AnkiCardOTron(file_path="c", word_list=[1, 2, 3])
 
     def test_one_word_not_right(self):
-        Deck = DAnki(
-            file_path=path.abspath(
-                r"C:\Users\Daniel\Documents\Apps\Danki_with_Django\backend\DankiProcessor\csv_examples\oneWordLatin.csv"
-            )
-        )
+        deck_path = path.join(self.cwd, "csv_examples\\oneWordLatin.csv")
+        Deck = AnkiCardOTron(file_path=deck_path)
         Deck.translate()
-        error_list = Deck.error_list
+        error_list = Deck.errors()
         self.assertEqual(len(error_list), 1)
 
     def test_one_word_not_hebrew(self):
-        Deck = DAnki(
-            file_path=path.abspath(
-                r"C:\Users\Daniel\Documents\Apps\Danki_with_Django\backend\DankiProcessor\csv_examples\oneWordLatin.csv"
-            )
-        )
+        deck_path = path.join(self.cwd, "csv_examples\\oneWordLatin.csv")
+
+        Deck = AnkiCardOTron(file_path=deck_path)
         Deck.translate()
-        error_list = Deck.error_list
+        error_list = Deck.errors()
         self.assertEqual(len(error_list), 1)
 
     def test_only_hebrew_words(self):
-        Deck = DAnki(
-            file_path=path.abspath(
-                r"C:\Users\Daniel\Documents\Apps\Danki_with_Django\backend\DankiProcessor\csv_examples\only_hebrew_words.csv"
-            )
-        )
+        deck_path = path.join(self.cwd, "csv_examples\\oneWordLatin.csv")
+        Deck = AnkiCardOTron(file_path=deck_path)
         Deck.translate()
-        error_list = Deck.error_list
-        self.assertEqual(len(error_list), 0)
+        input_errors = Deck.input_errors()
+        self.assertEqual((input_errors), 1)
 
 
 class TestInputList(unittest.TestCase):
@@ -60,7 +55,7 @@ class TestInputList(unittest.TestCase):
         docstring
         """
         word_list = ["שלטוםs", "שדג", "ככה", "שלום", "asdasd"]
-        Deck = DAnki(word_list=word_list)
+        Deck = AnkiCardOTron(word_list=word_list)
         Deck.translate()
         Deck.save_notes()
 
@@ -69,7 +64,7 @@ class TestInputList(unittest.TestCase):
         Deck.save_notes()
         Deck.generate_deck()
 
-        self.assertTrue(len(Deck.error_list) == 1)
+        self.assertTrue(len(Deck.errors()) == 1)
 
 
 if __name__ == "__main__":
