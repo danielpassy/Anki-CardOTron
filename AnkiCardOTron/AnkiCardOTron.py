@@ -9,6 +9,7 @@ import unicodedata
 import sys
 import aiohttp
 import genanki
+import csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
@@ -21,7 +22,7 @@ class AnkiCardOTron(object):
     def __init__(self, **kwargs):
         """
         Arguments:
-        deck_name, csv, from_kindle, file_path, file
+        deck_name, csv, file_path, file, word_list, django -> to be implemented. from_kindle
         TODO: IMPLEMENT: model, template
 
         """
@@ -40,7 +41,6 @@ class AnkiCardOTron(object):
             self.deck_name = "anki_deck" + str(randrange(1 << 30, 1 << 31))
 
         ## TODO: implemenent a way to modify the model
-
         self.my_deck = genanki.Deck(randrange(1 << 30, 1 << 31), self.deck_name)
 
         self.list_of_fields = {
@@ -56,23 +56,27 @@ class AnkiCardOTron(object):
         self.input_errors = self.__errorHandler.input_errors
         self.translate_errors = self.__errorHandler.translate_errors
         self.errors = self.__errorHandler.errors
+
         self.__open_file()
         self.__create_model()
 
     def __open_file(self) -> NoReturn:
         ## TODO: implement cleanup
 
-        if self.csv:
-
-            try:
-                with open(self.file_path, newline="", encoding="utf-8-sig") as f:
-                    input_list = [line.strip() for line in f]
-                    # check for two words in each input
-
-            except FileNotFoundError:
-                raise FileNotFoundError("The CSV file doesn't exist")
+        # for django compatibilitY
+        if hasattr(self, "django"):
+            input_list = self.file_path.read().decode('utf-8-sig').splitlines()
         else:
-            input_list = self.word_list
+            if self.csv:
+                try:
+                    with open(self.file_path, newline="", encoding="utf-8-sig") as f:
+                        input_list = [line.strip() for line in f]
+                        # check for two words in each input
+
+                except FileNotFoundError as input_not_found:
+                    raise FileNotFoundError("The CSV file doesn't exist") from input_not_found
+            else:
+                input_list = self.word_list
 
         self.word_list = self.__format_input(input_list)
 
@@ -100,7 +104,9 @@ class AnkiCardOTron(object):
             if self.is_hebrew(word):
                 pass
             else:
-                self.__errorHandler.create_error(word, "The token was not identified as Hebrew", 'input')
+                self.__errorHandler.create_error(
+                    word, "The token was not identified as Hebrew", "input"
+                )
                 word_list_tmp.remove(word)
         return word_list_tmp
 
@@ -121,8 +127,10 @@ class AnkiCardOTron(object):
         )
 
     def translate(self):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         loop.run_until_complete(self.IO_main(loop))
+        loop.close()
 
     async def IO_main(self, loop: object) -> NoReturn:
         headers = {
@@ -151,7 +159,7 @@ class AnkiCardOTron(object):
                 table["Multiple_Meaning"] = False
             self.df_main_table[word] = table
         else:
-            self.__errorHandler.create_error(word, html["ResultType"], 'translate')
+            self.__errorHandler.create_error(word, html["ResultType"], "translate")
 
     async def API_call(self, session: object, word: str) -> NoReturn:
         params = {"Query": word, "ClientName": "Android_Hebrew"}
@@ -160,7 +168,7 @@ class AnkiCardOTron(object):
             if response.reason == "OK":
                 await self.extract_response(await response.json(), word)
             else:
-                self.__errorHandler.__create_error(word, response.reason, 'translate')
+                self.__errorHandler.__create_error(word, response.reason, "translate")
 
     def auto_create_notes(self) -> str:
         for key, value in self.df_main_table.items():
@@ -172,7 +180,7 @@ class AnkiCardOTron(object):
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
         cwd = os.getcwd()
-        output_path = os.path.join(cwd, "outputDeck")
+        output_path = os.path.join(cwd, "static", "outputDeck")
         if not os.path.exists(output_path):
             os.mkdir(output_path)
         self.deck_path = os.path.join(output_path, deck_filename + ".apkg")
@@ -231,14 +239,14 @@ class AnkiCardOTron(object):
             self.error_list = []
 
         def create_error(self, word: str, error: object, typeE: str):
-            if not (typeE == 'input' or typeE == 'translate'):
+            if not (typeE == "input" or typeE == "translate"):
                 raise TypeError('The error should be "translate" or "input"')
             self.error_list.append({"word": word, "error": error, "type": typeE})
 
         def input_errors(self):
             input_errors = 0
             for item in self.error_list:
-                if item['type'] == 'input':
+                if item["type"] == "input":
                     input_errors += 1
             return input_errors
 
@@ -249,7 +257,7 @@ class AnkiCardOTron(object):
 
             translate_errors = 0
             for item in self.error_list:
-                if item['type'] == 'translate':
+                if item["type"] == "translate":
                     translate_errors += 1
             return translate_errors
 
@@ -261,6 +269,7 @@ class AnkiCardOTron(object):
 
         def __set_translated(self):
             self.translated = True
+
 
 # class AnkiTronError(object):
 #     """
