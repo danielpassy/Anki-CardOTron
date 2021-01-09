@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: AnkiOTron
+Version: 1.0
+Summary: Wrapper around genaki to automate Anki deck creation
+Home-page: https://github.com/pypa/sampleproject
+Author: Daniel de Mattos Passy
+Author-email: daniel.passy@gmail.com
+License: UNKNOWN
+Description: # AnkiCardOTron
+        Automates the creation of Anki cards for studying Hebrew-English
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

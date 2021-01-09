@@ -1,0 +1,9 @@
+README.md
+setup.py
+AnkiCardOTron/AnkiCardOTron.py
+AnkiCardOTron/__init__.py
+AnkiCardOTron/test.py
+AnkiOTron.egg-info/PKG-INFO
+AnkiOTron.egg-info/SOURCES.txt
+AnkiOTron.egg-info/dependency_links.txt
+AnkiOTron.egg-info/top_level.txt
