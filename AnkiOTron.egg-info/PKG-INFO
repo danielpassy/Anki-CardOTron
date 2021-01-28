@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: AnkiOTron
-Version: 1.0
+Version: 1.1
 Summary: Wrapper around genaki to automate Anki deck creation
 Home-page: https://github.com/pypa/sampleproject
 Author: Daniel de Mattos Passy

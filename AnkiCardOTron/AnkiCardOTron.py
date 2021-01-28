@@ -244,13 +244,16 @@ class AnkiCardOTron(object):
             else:
                 self.__errorHandler.__create_error(word, response.reason, "translate")
 
-    def generate_deck(self) -> str:
+    def generate_deck(self, path) -> str:
+        """
+        Generate the deck in the given path
+        It crashes if the path it's not valid
+        """
 
         deck_filename = self.deck_name.lower().replace(" ", "_")
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
-        cwd = os.getcwd()
-        output_path = os.path.join(cwd, "static", "outputDeck")
+        output_path = os.path.join(path)
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         self.deck_path = os.path.join(output_path, deck_filename + ".apkg")
@@ -272,8 +275,8 @@ class AnkiCardOTron(object):
             templates=[
                 {
                     "name": "{Card}",
-                    "qfmt": '<div style="color:blue;text-align:center;font-size:20px"><b>{{Token}}</div></b><br><b>Word:</b> {{Hebrew}}<br> <b>Word class:</b> {{Classification}}',
-                    "afmt": '{{FrontSide}}<hr id="answer"><div style="color:black;text-align:center;font-size:12px"><b>Translation</div></b>{{Translation}}',
+                    "qfmt": '<div style="color:blue;text-align:center;font-size:25px"><b>{{Token}}</div></b><br><b>Word:</b> {{Hebrew}}<br> <b>Word class:</b> {{Classification}}',
+                    "afmt": '{{FrontSide}}<hr id="answer"><div style="color:black;text-align:center;font-size:25px"><b>Translation</div></b>{{Translation}}',
                 },
             ],
         )

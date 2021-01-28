@@ -31,19 +31,21 @@ class AnkiCardOTron(object):
         file(a file handler)
         word_list(list of str)
         django(True/false)
-        
+        empty(optional->True)
+
         know issues:
-        
+
         TODO: IMPLEMENT: model, template, from_kindle
 
         """
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        if (not hasattr(self, "file_path")) and (not hasattr(self, "word_list")):
-            raise NameError("You must pass a word_list or file_path as an argument")
-        if hasattr(self, "file_path") and hasattr(self, "word_list"):
-            raise NameError("You must pass either word_list or file_path, not both")
+        if not hasattr(self, "empty"):
+            if (not hasattr(self, "file_path")) and (not hasattr(self, "word_list")):
+                raise NameError("You must pass a word_list or file_path as an argument")
+            if hasattr(self, "file_path") and hasattr(self, "word_list"):
+                raise NameError("You must pass either word_list or file_path, not both")
 
         # define the input type
         self.csv = False if hasattr(self, "word_list") else True
@@ -54,7 +56,7 @@ class AnkiCardOTron(object):
         # make word_list private.
         if hasattr(self, "word_list"):
             self.__word_list = self.word_list
-            delattr(self, 'word_list')
+            delattr(self, "word_list")
 
         ## TODO: implemenent a way to modify the model
         self.my_deck = genanki.Deck(randrange(1 << 30, 1 << 31), self.deck_name)
@@ -67,14 +69,16 @@ class AnkiCardOTron(object):
             "Multiple_Meaning",
         }
         self.df_main_table = {}
+        self.__create_model()
+        if hasattr(self, "empty"):
+            return
+
         self.__errorHandler = self.AnkiTronError()
         self.number_errors = self.__errorHandler.number_errors
         self.input_errors = self.__errorHandler.input_errors
         self.translate_errors = self.__errorHandler.translate_errors
         self.errors = self.__errorHandler.errors
-
         self.__open_file()
-        self.__create_model()
 
     def __open_file(self) -> NoReturn:
         ## TODO: implement cleanup
@@ -172,7 +176,7 @@ class AnkiCardOTron(object):
         assert type(input_words) == list, "You must provide a list of words"
         self.__word_list = self.__format_input(input_words)
 
-    def pop_word(self, word:str) -> NoReturn:
+    def pop_word(self, word: str) -> NoReturn:
         """
         Find the word, attempting first on the translated set
         and pop it. Else, try on the staged set, then finally returns
@@ -186,7 +190,7 @@ class AnkiCardOTron(object):
         elif word in self.__word_list:
             self.__word_list.pop(word)
         else:
-            print ("The word was not found")
+            print("The word was not found")
 
     def is_hebrew(self, word):
         return any(
@@ -240,15 +244,18 @@ class AnkiCardOTron(object):
             else:
                 self.__errorHandler.__create_error(word, response.reason, "translate")
 
-    def generate_deck(self) -> str:
+    def generate_deck(self, path) -> str:
+        """
+        Generate the deck in the given path
+        It crashes if the path it's not valid
+        """
 
         deck_filename = self.deck_name.lower().replace(" ", "_")
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
-        cwd = os.getcwd()
-        output_path = os.path.join(cwd, "static", "outputDeck")
+        output_path = os.path.join(path)
         if not os.path.exists(output_path):
-            os.mkdir(output_path)
+            os.makedirs(output_path)
         self.deck_path = os.path.join(output_path, deck_filename + ".apkg")
         my_package.write_to_file(self.deck_path)
         return self.deck_path
@@ -268,8 +275,8 @@ class AnkiCardOTron(object):
             templates=[
                 {
                     "name": "{Card}",
-                    "qfmt": '<div style="color:blue;text-align:center;font-size:20px"><b>{{Token}}</div></b><br><b>Word:</b> {{Hebrew}}<br> <b>Word class:</b> {{Classification}}',
-                    "afmt": '{{FrontSide}}<hr id="answer"><div style="color:black;text-align:center;font-size:12px"><b>Translation</div></b>{{Translation}}',
+                    "qfmt": '<div style="color:blue;text-align:center;font-size:25px"><b>{{Token}}</div></b><br><b>Word:</b> {{Hebrew}}<br> <b>Word class:</b> {{Classification}}',
+                    "afmt": '{{FrontSide}}<hr id="answer"><div style="color:black;text-align:center;font-size:25px"><b>Translation</div></b>{{Translation}}',
                 },
             ],
         )
