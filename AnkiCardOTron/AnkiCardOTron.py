@@ -244,12 +244,12 @@ class AnkiCardOTron(object):
             else:
                 self.__errorHandler.__create_error(word, response.reason, "translate")
 
-    def generate_deck(self, path) -> str:
+    def generate_deck(self, path: str) -> str:
         """
         Generate the deck in the given path
         It crashes if the path it's not valid
         """
-
+        
         deck_filename = self.deck_name.lower().replace(" ", "_")
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
