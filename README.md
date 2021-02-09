@@ -7,7 +7,22 @@ This library helps the creation of Anki Decks to study Hebrew, however it could 
 It receives a list of words, either via a list or using a .csv file, calls an API asynchronously, create the deck and return it.<br>
 <br>
 
-You can install it using Pip
+Install it using Pip
 ```py
 pip install AnkiOTron
 ```
+Create an AnkiOTron instance passing the list of words that you wish to translate
+```py
+from AnkiOTron import AnkiOTron
+list = ["שלום", "להיתרות"]
+instance = AnkiOTron(word_list=list)
+```
+call translate method
+```py
+instance.translate()
+```
+generate the deck using the path
+```py
+instance.generate_deck()
+```
+
