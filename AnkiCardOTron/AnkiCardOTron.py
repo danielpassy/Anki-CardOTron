@@ -17,25 +17,45 @@ import json
 
 class AnkiCardOTron(object):
     """
-    Class responsable for receive words from the user,
-    acessing an API to get data
-    and creating anki decks
+    Class that represents an Anki Deck builder
+
+    It responsible for receiving inputs in English and
+    creating an Anki Deck with it's translations
+    The flow works as follows:
+        instantiate the class with a file_path or word_list
+            instance = AnkiCardOTron(word_list=my_word_list)
+        add extra words, or pop undesired words
+            instance.add_words(['example1', 'example2'])
+            instance.pop_word('example1')
+        translate the words
+            instance.translate()
+        generate the deck
+            instance.generate_deck(path)
+
     """
 
     def __init__(self, **kwargs):
         """
-        Arguments:
-        deck_name(str)
-        csv(a csv in memory)
-        file_path(a file path, str)
-        file(a file handler)
-        word_list(list of str)
-        django(True/false)
-        empty(optional->True)
 
-        know issues:
+        Constructor for the class. It requires either file_path, word_list,
+        but no both, or, alternatively, you can set empty=true
 
-        TODO: IMPLEMENT: model, template, from_kindle
+        Args:
+            deck_name (str):
+                The name that the output should have
+            file_path(a file path, str):
+                A file path for a CSV file containing one word per cell
+            in_memory(bool):
+                if set to true, file_path is read as a file in memory
+            word_list(list(str)):
+                A list of words to be translated
+            empty(bool):
+                let's you create an instance without word_list/file_path
+            language(str):
+                let you define the input language (not implemented)
+
+
+        IMPLEMENT: model, template, from_kindle
 
         """
         for key, value in kwargs.items():
@@ -50,6 +70,9 @@ class AnkiCardOTron(object):
         # define the input type
         self.csv = False if hasattr(self, "word_list") else True
 
+        if not hasattr(self, "language"):
+            self.language = "Hebrew"
+
         if not hasattr(self, "deck_name"):
             self.deck_name = "anki_deck" + str(randrange(1 << 30, 1 << 31))
 
@@ -62,7 +85,7 @@ class AnkiCardOTron(object):
         self.my_deck = genanki.Deck(randrange(1 << 30, 1 << 31), self.deck_name)
 
         self.list_of_fields = {
-            "Hebrew",
+            self.language,
             "Translation",
             "Token",
             "Classification",
@@ -70,21 +93,25 @@ class AnkiCardOTron(object):
         }
         self.df_main_table = {}
         self.__create_model()
-        if hasattr(self, "empty"):
-            return
-
         self.__errorHandler = self.AnkiTronError()
         self.number_errors = self.__errorHandler.number_errors
         self.input_errors = self.__errorHandler.input_errors
         self.translate_errors = self.__errorHandler.translate_errors
         self.errors = self.__errorHandler.errors
+
+        # if it's empty, do not process the file/list
+        if hasattr(self, "empty"):
+            return
+
         self.__open_file()
 
     def __open_file(self) -> NoReturn:
+        """ Takes the file handlers or the word_list and ingest """
+
         ## TODO: implement cleanup
 
-        # for django compatibilitY
-        if hasattr(self, "django") and self.csv:
+        # for in_memory compatibilitY
+        if hasattr(self, "in_memory") and self.csv:
             input_list = self.file_path.read().decode("utf-8-sig").splitlines()
         else:
             if self.csv:
@@ -104,14 +131,13 @@ class AnkiCardOTron(object):
 
     def serialize(self) -> str:
         """
-        Returns a string representation of the data
+        Returns a json string representation of the data
         """
         return json.dumps(self.df_main_table, ensure_ascii=False)
 
     def deserialize(self, serialized: str) -> NoReturn:
         """
-        Receives a string representation of the data
-        and
+        Load json data into unprocessed words
         """
         new_data = json.loads(serialized)
         self.df_main_table.update(new_data)
@@ -135,7 +161,7 @@ class AnkiCardOTron(object):
         word_list_tmp = [x for x in word_list_tmp if x]
         word_list = word_list_tmp.copy()
         for word in word_list:
-            if self.is_hebrew(word):
+            if self.__are_words(word):
                 pass
             else:
                 self.__errorHandler.create_error(
@@ -144,27 +170,24 @@ class AnkiCardOTron(object):
                 word_list_tmp.remove(word)
         return word_list_tmp
 
-    def get_unprocessed_words(self) -> list:
+    def __are_words(self, word):
+        """ check if the str are words in Hebrew"""
+        return any(
+            char in set("‎ב‎ג‎ד‎ה‎ו‎ז‎ח‎ט‎י‎כ‎ך‎ל‎מ‎נ‎ס‎ע‎פ‎צ‎ק‎ר‎ש‎ת‎ם‎ן‎ף‎ץ")
+            for char in word.lower()
+        )
 
-        # return all untranslated words
+    def get_unprocessed_words(self) -> list:
+        """return all untranslated words """
         return self.__word_list
 
     def get_processed_words(self) -> list:
+        """return all translated words"""
 
-        # return all translated words
         processed_words = []
         for keys in self.df_main_table.keys():
             processed_words.append(keys)
         return processed_words
-
-    def print_processed_words(self) -> NoReturn:
-        processed_words = []
-        for keys in self.df_main_table.keys():
-            processed_words.append(keys)
-        print(processed_words)
-
-    def print_unprocessed_words(self) -> NoReturn:
-        print(self.__word_list)
 
     def add_words(self, input_words: list) -> NoReturn:
         """
@@ -178,9 +201,9 @@ class AnkiCardOTron(object):
 
     def pop_word(self, word: str) -> NoReturn:
         """
-        Find the word, attempting first on the translated set
-        and pop it. Else, try on the staged set, then finally returns
-        not found
+        Remove the word from the processed words
+        If not found,from the unprocessed words
+        if not found again, returns not found
         """
 
         assert type(input_words) == str, "You must provide a string"
@@ -190,35 +213,48 @@ class AnkiCardOTron(object):
         elif word in self.__word_list:
             self.__word_list.pop(word)
         else:
-            print("The word was not found")
-
-    def is_hebrew(self, word):
-        return any(
-            char in set("‎ב‎ג‎ד‎ה‎ו‎ז‎ח‎ט‎י‎כ‎ך‎ל‎מ‎נ‎ס‎ע‎פ‎צ‎ק‎ר‎ש‎ת‎ם‎ן‎ף‎ץ")
-            for char in word.lower()
-        )
+            return "not found"
 
     def translate(self):
+        """ Async wrapper that calls the async api call"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.IO_main(loop))
+        loop.run_until_complete(self.__IO_main(loop))
         loop.close()
+        self.__save_card()
         # empty word list after process is done.
         self.__word_list = []
 
-    async def IO_main(self, loop: object) -> NoReturn:
-        headers = {
-            "accept": "*/*",
-            "Host": "services.morfix.com",
-            "Content-Type": "application/json",
-        }
+    async def __IO_main(self, loop: object) -> NoReturn:
+        """ create the session using aiohttp"""
+
+        headers = self.__get_headers()
         async with aiohttp.ClientSession(loop=loop, headers=headers) as session:
             response = await asyncio.gather(
-                *[self.API_call(session, word) for word in self.__word_list],
+                *[self.__API_call(session, word) for word in self.__word_list],
                 return_exceptions=False,
             )
 
-    async def extract_response(self, html: str, word: str) -> str:
+    async def __API_call(self, session: object, word: str) -> NoReturn:
+        """ call the API """
+
+        body = {"Query": word, "ClientName": "Android_Hebrew"}
+        url = "http://services.morfix.com/translationhebrew/TranslationService/GetTranslation/"
+        async with session.post(url, json=body, ssl=ssl.SSLContext()) as response:
+            if response.reason == "OK":
+                await self.__extract_response(await response.json(), word)
+            else:
+                self.__errorHandler.__create_error(word, response.reason, "translate")
+
+    async def __extract_response(self, html: str, word: str) -> str:
+        """
+         extract the data from the api response 
+        
+        it receive the response from API call if it's okay
+        it extracts the correct data, while also creating the fields to be inserted in the notes
+        observation: the fields in the table must be the same as in the __create_mode 
+        """
+
         if html["ResultType"] == "Match":
             meaning = html["Words"][0]
             table = {
@@ -235,21 +271,20 @@ class AnkiCardOTron(object):
         else:
             self.__errorHandler.create_error(word, html["ResultType"], "Translation")
 
-    async def API_call(self, session: object, word: str) -> NoReturn:
-        params = {"Query": word, "ClientName": "Android_Hebrew"}
-        url = "http://services.morfix.com/translationhebrew/TranslationService/GetTranslation/"
-        async with session.post(url, json=params, ssl=ssl.SSLContext()) as response:
-            if response.reason == "OK":
-                await self.extract_response(await response.json(), word)
-            else:
-                self.__errorHandler.__create_error(word, response.reason, "translate")
+    def __get_headers(self):
+        """ get the headers for the API CALL"""
+        return {
+            "accept": "*/*",
+            "Host": "services.morfix.com",
+            "Content-Type": "application/json",
+        }
 
     def generate_deck(self, path: str) -> str:
         """
         Generate the deck in the given path
         It crashes if the path it's not valid
         """
-        
+
         deck_filename = self.deck_name.lower().replace(" ", "_")
         my_package = genanki.Package(self.my_deck)
         # my_package.media_files = self.audio_paths # TODO: Kindle implementation
@@ -262,6 +297,7 @@ class AnkiCardOTron(object):
         # returns the  path to the deck
 
     def __create_model(self):
+        """ create the card model"""
 
         model_fields = []
         for field in [
@@ -281,7 +317,16 @@ class AnkiCardOTron(object):
             ],
         )
 
-    def create_note(self, data: dict) -> NoReturn:
+    def __create_card(self, data: dict) -> NoReturn:
+        """
+        create a a card 
+        
+        Args:
+            data(dict)
+                This dict contains all the fields required for the card creation
+                e.g. word, translation as define in extract resposne in the api call
+
+        """
         ## must receive a dictionary with each field and it's value
         # create a Note
         note_fields = []
@@ -295,9 +340,10 @@ class AnkiCardOTron(object):
         )
         self.my_deck.add_note(my_note)
 
-    def save_notes(self) -> str:
+    def __save_card(self) -> str:
+        """ Create a note for each available processed word """
         for key, value in self.df_main_table.items():
-            self.create_note(value)
+            self.__create_card(value)
 
     class AnkiTronError(object):
         """

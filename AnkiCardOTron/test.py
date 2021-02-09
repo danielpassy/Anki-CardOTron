@@ -57,12 +57,10 @@ class TestInputList(unittest.TestCase):
         word_list = ["שלטוםs", "שדג", "ככה", "שלום", "asdasd"]
         Deck = AnkiCardOTron(word_list=word_list)
         Deck.translate()
-        Deck.save_notes()
-
+        dir_path = path.dirname(__file__)
         Deck.add_words(["שחרתי"])
         Deck.translate()
-        Deck.save_notes()
-        Deck.generate_deck()
+        Deck.generate_deck(dir_path)
         processed_words = Deck.get_processed_words()
         # python keep messing the order of the words.
         # self.assertEqual(processed_words,['שלום','שלטוםs',  'ככה', 'שדג', 'שחרתי'])
